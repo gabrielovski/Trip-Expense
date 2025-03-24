@@ -1,3 +1,7 @@
+import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import "../style.css";
+
 export const metadata = {
   title: "Trip-Expense",
   description:
@@ -6,7 +10,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={GeistSans.className}>
       <body>{children}</body>
     </html>
   );
