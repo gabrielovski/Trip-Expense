@@ -32,6 +32,9 @@ export default function Home() {
 
   return (
     <div>
+      <h1 className="welcome-text">
+        Hello World! Bem-vindo(a) ao Trip-Expense
+      </h1>
       <h1>Lista de Usuários no banco de dados</h1>
       <ul>
         {users.map((user, index) => (
@@ -40,6 +43,10 @@ export default function Home() {
           </li>
         ))}
       </ul>
+      <footer>
+        ⚠️ Lista inserida somente para mostrar a integração com o Banco de
+        Dados! (Temporária) ⚠️
+      </footer>
     </div>
   );
 }

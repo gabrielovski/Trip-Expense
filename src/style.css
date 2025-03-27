@@ -23,7 +23,7 @@ body {
 
 /* Container centralizado com visual minimalista */
 div {
-  max-width: 800px;
+  max-width: 900px;
   width: 100%; /* Ocupa toda a largura disponível até o limite */
   padding: 20px;
   background-color: var(--foreground-color);
@@ -42,8 +42,22 @@ h1 {
   transition: color 0.3s ease; /* Transição suave para a cor */
 }
 
-h1:hover {
+h1:hover,
+welcome-text:hover {
   color: #ffffff; /* Muda para branco ao passar o mouse */
+}
+
+welcome-text {
+  text-align: center;
+  font-size: 1em;
+  margin-bottom: 20px;
+  color: var(--text-color);
+}
+
+footer {
+  text-align: center;
+  margin-top: 20px;
+  color: var(--text-color);
 }
 
 /* Lista sem marcadores e imbar espaçamento */
@@ -73,6 +87,7 @@ li:last-child {
 @media (max-width: 600px) {
   div {
     padding: 10px;
+    max-width: 500px;
   }
   h1 {
     font-size: 2em;
@@ -85,6 +100,7 @@ li:last-child {
 @media (max-width: 400px) {
   div {
     padding: 5px;
+    max-width: 350px;
   }
   h1 {
     font-size: 1.5em;
