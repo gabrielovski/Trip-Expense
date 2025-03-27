@@ -1,9 +1,8 @@
-import { supabaseSeguranca } from "../supabaseClient";
+import { getSupabaseClient } from "../supabaseClient";
 
 export async function getUsers() {
-  const { data, error } = await supabaseSeguranca
-    .from("tbusuarios")
-    .select("nome");
+  const supabase = getSupabaseClient("seguranca");
+  const { data, error } = await supabase.from("tbusuarios").select("nome");
 
   if (error) {
     // Evitar expor detalhes do erro em produção

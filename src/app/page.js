@@ -5,19 +5,30 @@ import { getUsers } from "./api/getUsers";
 
 export default function Home() {
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     async function fetchUsers() {
+      setLoading(true);
       const response = await getUsers();
       if (response.success) {
         setUsers(response.data);
-        console.log("Users state updated:", response.data); // Log para verificar o estado atualizado
       } else {
-        console.error(response.message);
+        setError(response.message);
       }
+      setLoading(false);
     }
     fetchUsers();
   }, []);
+
+  if (loading) {
+    return <div>Carregando usuários...</div>;
+  }
+
+  if (error) {
+    return <div>Erro ao carregar usuários: {error}</div>;
+  }
 
   return (
     <div>
