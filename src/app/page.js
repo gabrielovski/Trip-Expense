@@ -1,52 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getUsers } from "./api/getUsers";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser } from "./services/auth";
 
 export default function Home() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
-    async function fetchUsers() {
-      setLoading(true);
-      const response = await getUsers();
-      if (response.success) {
-        setUsers(response.data);
-      } else {
-        setError(response.message);
+    async function checkAuth() {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          router.push("/dashboard");
+        } else {
+          router.push("/login");
+        }
+      } catch (error) {
+        router.push("/login");
       }
-      setLoading(false);
     }
-    fetchUsers();
-  }, []);
 
-  if (loading) {
-    return <div>Carregando usuários...</div>;
-  }
-
-  if (error) {
-    return <div>Erro ao carregar usuários: {error}</div>;
-  }
+    checkAuth();
+  }, [router]);
 
   return (
-    <div>
-      <h1 className="welcome-text">
-        Hello World! Bem-vindo(a) ao Trip-Expense
-      </h1>
-      <h1>Lista de Usuários no banco de dados</h1>
-      <ul>
-        {users.map((user, index) => (
-          <li key={`${user.usuario_id}-${index}`}>
-            {user.nome || "Nome não disponível"}
-          </li>
-        ))}
-      </ul>
-      <footer>
-        ⚠️ Lista inserida somente para mostrar a integração com o Banco de
-        Dados! (Temporária) ⚠️
-      </footer>
+    <div className="page-container">
+      <h2>Redirecionando...</h2>
     </div>
   );
 }
