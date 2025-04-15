@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser } from "./services/auth";
+import { getCurrentUser } from "./auth";
 
 export default function Home() {
   const router = useRouter();
@@ -11,16 +11,11 @@ export default function Home() {
     async function checkAuth() {
       try {
         const user = await getCurrentUser();
-        if (user) {
-          router.push("/dashboard");
-        } else {
-          router.push("/login");
-        }
+        router.push(user ? "/dashboard" : "/login");
       } catch (error) {
         router.push("/login");
       }
     }
-
     checkAuth();
   }, [router]);
 
