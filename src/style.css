@@ -1,15 +1,16 @@
-/* Variáveis para tema noturno */
+/* Variáveis para tema noturno - simplificadas */
 :root {
   --background-color: #121212;
   --foreground-color: #1e1e1e;
   --text-color: #e0e0e0;
-  --accent-color: #ffffff;
   --border-color: #333;
-  --font-family: "Geist Sans", sans-serif;
   --primary-color: #4f46e5;
   --error-color: #ef4444;
+  --success-color: #10b981;
+  --font-family: "Geist Sans", sans-serif;
 }
 
+/* Reset básico - reduzindo redundância */
 body {
   font-family: var(--font-family);
   background-color: var(--background-color);
@@ -33,13 +34,12 @@ body {
   border-radius: 8px;
 }
 
-/* Título com destaque sutil */
+/* Títulos com estilos simplificados */
 h1,
 h2 {
   text-align: center;
   margin-bottom: 20px;
   color: var(--text-color);
-  transition: color 0.3s ease;
 }
 
 h1 {
@@ -52,25 +52,20 @@ h2 {
   font-size: 2em;
 }
 
-h1:hover,
-.welcome-text:hover {
-  color: #ffffff;
-}
+/* Removido hover transitions desnecessários para melhor performance */
 
 .welcome-text {
   text-align: center;
   font-size: 1em;
   margin-bottom: 20px;
-  color: var(--text-color);
 }
 
 footer {
   text-align: center;
   margin-top: 20px;
-  color: var(--text-color);
 }
 
-/* Estilos para formulários de autenticação */
+/* Estilos para autenticação - simplificados */
 .auth-container {
   max-width: 400px;
   width: 90%;
@@ -78,14 +73,12 @@ footer {
   margin: 0 auto;
   background-color: var(--foreground-color);
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .auth-title {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   font-size: 1.8rem;
-  color: var(--text-color);
 }
 
 .form-group {
@@ -95,7 +88,6 @@ footer {
 .form-label {
   display: block;
   margin-bottom: 0.5rem;
-  color: var(--text-color);
   font-size: 0.9rem;
 }
 
@@ -107,7 +99,6 @@ footer {
   background-color: var(--background-color);
   color: var(--text-color);
   font-size: 1rem;
-  transition: border-color 0.3s ease;
   box-sizing: border-box;
 }
 
@@ -124,7 +115,6 @@ footer {
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.3s ease;
 }
 
 .btn-primary {
@@ -136,17 +126,29 @@ footer {
   background-color: #4338ca;
 }
 
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
 .auth-link {
   display: block;
   text-align: center;
-  margin-top: 1rem;
   color: var(--text-color);
   text-decoration: none;
   font-size: 0.9rem;
+  margin-top: 15px;
 }
 
 .auth-link:hover {
   color: var(--primary-color);
+}
+
+.forgot-password {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
 }
 
 .error-message {
@@ -157,13 +159,41 @@ footer {
 }
 
 .success-message {
-  color: #10b981;
+  color: var(--success-color);
   font-size: 0.9rem;
   margin-top: 0.5rem;
   text-align: center;
 }
 
-/* Ajuste responsivo para dispositivos menores */
+/* Estilos específicos para recuperação de senha */
+.form-info {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+.reset-code-container {
+  text-align: center;
+}
+
+.code-display {
+  background-color: var(--background-color);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 15px auto;
+  max-width: 200px;
+  border: 1px solid var(--border-color);
+}
+
+.reset-code {
+  font-size: 1.4rem;
+  font-weight: bold;
+  letter-spacing: 3px;
+  margin: 0;
+  color: var(--success-color);
+}
+
+/* Media queries simplificadas */
 @media (max-width: 600px) {
   .page-container {
     padding: 10px;

@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+// Rotas que não requerem autenticação - definidas uma única vez
+const PUBLIC_ROUTES = ["/login", "/cadastro"];
+
 export async function middleware(req) {
   const res = NextResponse.next();
 
+  // Criação do cliente Supabase com configuração mínima necessária
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -18,21 +22,20 @@ export async function middleware(req) {
     }
   );
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Verificação de sessão otimizada
+  const { data } = await supabase.auth.getSession();
+  const session = data?.session;
 
-  // Rotas que não requerem autenticação
-  const publicRoutes = ["/login", "/cadastro"];
-  const isPublicRoute = publicRoutes.includes(req.nextUrl.pathname);
+  // Determinar se a rota atual é pública
+  const path = req.nextUrl.pathname;
+  const isPublicRoute = PUBLIC_ROUTES.includes(path);
 
+  // Redirecionamentos otimizados
   if (!session && !isPublicRoute) {
-    // Redireciona para login se não estiver autenticado e tentar acessar rota protegida
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
   if (session && isPublicRoute) {
-    // Redireciona para dashboard se estiver autenticado e tentar acessar login/cadastro
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 

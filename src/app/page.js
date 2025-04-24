@@ -8,20 +8,16 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    async function checkAuth() {
-      try {
-        const user = await getCurrentUser();
-        router.push(user ? "/dashboard" : "/login");
-      } catch (error) {
-        router.push("/login");
-      }
-    }
-    checkAuth();
+    // Verificação simples e redireciona imediatamente
+    const user = getCurrentUser();
+    router.replace(user ? "/dashboard" : "/login");
   }, [router]);
 
+  // UI minimalista sem estado loading desnecessário
   return (
-    <div className="page-container">
-      <h2>Redirecionando...</h2>
+    <div className="page-container" style={{ textAlign: "center" }}>
+      <h2>Trip-Expense</h2>
+      <p>Carregando...</p>
     </div>
   );
 }

@@ -17,6 +17,8 @@ export default function LoginForm() {
   useEffect(() => {
     if (searchParams.get("registered") === "true") {
       setSuccess("Conta criada com sucesso! Faça login para continuar.");
+    } else if (searchParams.get("password_reset") === "true") {
+      setSuccess("Senha alterada com sucesso! Faça login para continuar.");
     }
   }, [searchParams]);
 
@@ -27,8 +29,7 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      const { user } = await signIn(login, password);
-      localStorage.setItem("user", JSON.stringify(user));
+      await signIn(login, password);
       router.push("/dashboard");
     } catch (err) {
       setError(
@@ -80,9 +81,14 @@ export default function LoginForm() {
         </button>
       </form>
 
-      <Link href="/cadastro" className="auth-link">
-        Não tem uma conta? Cadastre-se
-      </Link>
+      <div className="auth-links">
+        <Link href="/cadastro" className="auth-link">
+          Não tem uma conta? Cadastre-se
+        </Link>
+        <Link href="/recuperar-senha" className="auth-link forgot-password">
+          Esqueceu sua senha?
+        </Link>
+      </div>
     </div>
   );
 }

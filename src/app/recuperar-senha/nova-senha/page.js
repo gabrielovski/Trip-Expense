@@ -1,22 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { signUp } from "../auth";
+import { useState, useEffect } from "react";
+import { resetPassword } from "../../auth";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function Register() {
+export default function NovaSenha() {
   const [formData, setFormData] = useState({
-    name: "",
-    login: "",
     password: "",
     confirmPassword: "",
   });
+  const [login, setLogin] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Handler unificado para todos os campos do formulário
+  useEffect(() => {
+    const userLogin = searchParams.get("login");
+    const resetCode = searchParams.get("code");
+
+    if (!userLogin || !resetCode) {
+      router.replace("/recuperar-senha");
+    } else {
+      setLogin(userLogin);
+      setCode(resetCode);
+    }
+  }, [searchParams, router]);
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -27,9 +40,11 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
-    const { name, login, password, confirmPassword } = formData;
+    const { password, confirmPassword } = formData;
 
+    // Validação básica
     if (password !== confirmPassword) {
       setError("As senhas não coincidem");
       return;
@@ -40,17 +55,18 @@ export default function Register() {
       return;
     }
 
-    if (login.length > 50 || name.length > 200) {
-      setError("Login ou nome muito longo");
-      return;
-    }
-
     setLoading(true);
     try {
-      await signUp(login, password, name);
-      router.push("/login?registered=true");
+      // Redefinir a senha
+      await resetPassword(login, code, password);
+      setSuccess("Senha redefinida com sucesso!");
+
+      // Redirecionar para login após 2 segundos
+      setTimeout(() => {
+        router.push("/login?password_reset=true");
+      }, 2000);
     } catch (err) {
-      setError(err.message || "Erro ao criar conta");
+      setError(err.message || "Erro ao redefinir senha");
     } finally {
       setLoading(false);
     }
@@ -58,43 +74,16 @@ export default function Register() {
 
   return (
     <div className="auth-container">
-      <h2 className="auth-title">Criar Conta</h2>
+      <h2 className="auth-title">Nova Senha</h2>
       {error && <p className="error-message">{error}</p>}
+      {success && <p className="success-message">{success}</p>}
+
+      <p className="form-info">Define sua nova senha para o usuário {login}.</p>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="name" className="form-label">
-            Nome Completo
-          </label>
-          <input
-            id="name"
-            type="text"
-            className="form-input"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            maxLength={200}
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="login" className="form-label">
-            Usuário
-          </label>
-          <input
-            id="login"
-            type="text"
-            className="form-input"
-            value={formData.login}
-            onChange={handleChange}
-            required
-            maxLength={50}
-          />
-        </div>
-
-        <div className="form-group">
           <label htmlFor="password" className="form-label">
-            Senha
+            Nova Senha
           </label>
           <input
             id="password"
@@ -109,7 +98,7 @@ export default function Register() {
 
         <div className="form-group">
           <label htmlFor="confirmPassword" className="form-label">
-            Confirmar Senha
+            Confirmar Nova Senha
           </label>
           <input
             id="confirmPassword"
@@ -123,12 +112,12 @@ export default function Register() {
         </div>
 
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? "Criando conta..." : "Criar Conta"}
+          {loading ? "Processando..." : "Redefinir Senha"}
         </button>
       </form>
 
       <Link href="/login" className="auth-link">
-        Já tem uma conta? Faça login
+        Voltar para o login
       </Link>
     </div>
   );
