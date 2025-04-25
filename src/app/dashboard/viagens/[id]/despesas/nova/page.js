@@ -4,8 +4,11 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseClient } from "../../../../supabaseClient";
-import { getCurrentUser } from "../../../../auth";
+import {
+  getSupabaseClient,
+  contasPagarTable,
+} from "../../../../../supabaseClient";
+import { getCurrentUser } from "../../../../../auth";
 
 export default function NovaDespesaPage() {
   const [viagem, setViagem] = useState(null);
