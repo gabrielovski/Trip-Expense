@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { verifyResetCode } from "../../auth";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function VerificarCodigo() {
+// Componente cliente que usa useSearchParams
+function VerificarCodigoForm() {
   const [code, setCode] = useState("");
   const [login, setLogin] = useState("");
   const [error, setError] = useState("");
@@ -37,7 +38,7 @@ export default function VerificarCodigo() {
         )}&code=${encodeURIComponent(code)}`
       );
     } catch (err) {
-      setError(err.message || "Código inválido");
+      setError(err.message || "Código inválido ou expirado. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -45,37 +46,58 @@ export default function VerificarCodigo() {
 
   return (
     <div className="auth-container">
-      <h2 className="auth-title">Verificar Código</h2>
+      <h2 className="auth-title">Insira o Código de Recuperação</h2>
       {error && <p className="error-message">{error}</p>}
 
-      <p className="form-info">
-        Digite o código de recuperação que você recebeu para o usuário {login}.
-      </p>
-
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="auth-form">
         <div className="form-group">
-          <label htmlFor="code" className="form-label">
-            Código de Recuperação
-          </label>
+          <label htmlFor="login">Login</label>
           <input
-            id="code"
             type="text"
-            className="form-input"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            required
-            placeholder="Digite o código de 6 dígitos"
+            id="login"
+            value={login}
+            readOnly
+            disabled
+            className="form-control"
           />
         </div>
-
-        <button type="submit" className="btn btn-primary" disabled={loading}>
+        <div className="form-group">
+          <label htmlFor="code">Código de Recuperação</label>
+          <input
+            type="text"
+            id="code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Insira o código recebido"
+            required
+            className="form-control"
+          />
+        </div>
+        <button
+          type="submit"
+          className="auth-button"
+          disabled={loading || !code}>
           {loading ? "Verificando..." : "Verificar Código"}
         </button>
       </form>
 
-      <Link href="/recuperar-senha" className="auth-link">
-        Voltar
-      </Link>
+      <div className="auth-links">
+        <Link href="/recuperar-senha" className="auth-link">
+          Solicitar novo código
+        </Link>
+        <Link href="/login" className="auth-link">
+          Voltar ao login
+        </Link>
+      </div>
     </div>
+  );
+}
+
+// Componente principal da página com Suspense
+export default function VerificarCodigo() {
+  return (
+    <Suspense fallback={<div className="loading">Carregando...</div>}>
+      <VerificarCodigoForm />
+    </Suspense>
   );
 }

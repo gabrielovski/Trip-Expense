@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { resetPassword } from "../../auth";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function NovaSenha() {
+// Componente cliente que usa useSearchParams
+function NovaSenhaForm() {
   const [formData, setFormData] = useState({
     password: "",
     confirmPassword: "",
@@ -243,5 +244,14 @@ export default function NovaSenha() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Componente principal da página com Suspense
+export default function NovaSenha() {
+  return (
+    <Suspense fallback={<div className="loading">Carregando...</div>}>
+      <NovaSenhaForm />
+    </Suspense>
   );
 }
