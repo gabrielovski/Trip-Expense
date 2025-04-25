@@ -11,6 +11,7 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -22,14 +23,25 @@ export default function LoginForm() {
     }
   }, [searchParams]);
 
+  // Função anti-throttling para evitar tentativas repetidas
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (loading) return; // Prevenir múltiplos cliques
+
     setError("");
     setSuccess("");
     setLoading(true);
 
     try {
+      // Pequeno delay para segurança contra ataques de força bruta
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       await signIn(login, password);
+
+      // Limpar campos sensíveis
+      setPassword("");
+
       router.push("/dashboard");
     } catch (err) {
       setError(
@@ -59,6 +71,7 @@ export default function LoginForm() {
             onChange={(e) => setLogin(e.target.value)}
             required
             maxLength={50}
+            autoComplete="username"
           />
         </div>
 
@@ -66,14 +79,23 @@ export default function LoginForm() {
           <label htmlFor="password" className="form-label">
             Senha
           </label>
-          <input
-            id="password"
-            type="password"
-            className="form-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div className="password-input-container">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              className="form-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword(!showPassword)}>
+              {showPassword ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
         </div>
 
         <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -82,13 +104,37 @@ export default function LoginForm() {
       </form>
 
       <div className="auth-links">
-        <Link href="/cadastro" className="auth-link">
-          Não tem uma conta? Cadastre-se
+        <Link href="/recuperar-senha" className="auth-link">
+          Esqueci minha senha
         </Link>
-        <Link href="/recuperar-senha" className="auth-link forgot-password">
-          Esqueceu sua senha?
+        <Link href="/cadastro" className="auth-link">
+          Criar conta
         </Link>
       </div>
+
+      <style jsx>{`
+        .password-input-container {
+          position: relative;
+          display: flex;
+        }
+
+        .password-toggle {
+          position: absolute;
+          right: 0;
+          top: 0;
+          height: 100%;
+          padding: 0 10px;
+          background: transparent;
+          border: none;
+          color: var(--text-secondary);
+          cursor: pointer;
+          font-size: 0.8rem;
+        }
+
+        .password-toggle:hover {
+          color: var(--primary-color);
+        }
+      `}</style>
     </div>
   );
 }

@@ -15,6 +15,8 @@ export default function NovaSenha() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -31,10 +33,52 @@ export default function NovaSenha() {
   }, [searchParams, router]);
 
   const handleChange = (e) => {
+    const { id, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.id]: e.target.value,
+      [id]: value,
     });
+
+    if (id === "password") {
+      // Avaliar força da senha (0-100)
+      const strength = calculatePasswordStrength(value);
+      setPasswordStrength(strength);
+    }
+  };
+
+  // Função para calcular a força da senha
+  const calculatePasswordStrength = (password) => {
+    if (!password) return 0;
+
+    let score = 0;
+
+    // Comprimento (máx 40 pontos)
+    score += Math.min(password.length * 4, 40);
+
+    // Variedade de caracteres (máx 60 pontos)
+    if (/[a-z]/.test(password)) score += 10; // Minúsculas
+    if (/[A-Z]/.test(password)) score += 10; // Maiúsculas
+    if (/[0-9]/.test(password)) score += 10; // Números
+    if (/[^a-zA-Z0-9]/.test(password)) score += 15; // Caracteres especiais
+
+    // Se tem diferentes tipos de caracteres (máx 15 pontos)
+    let charTypes = 0;
+    if (/[a-z]/.test(password)) charTypes++;
+    if (/[A-Z]/.test(password)) charTypes++;
+    if (/[0-9]/.test(password)) charTypes++;
+    if (/[^a-zA-Z0-9]/.test(password)) charTypes++;
+    score += (charTypes - 1) * 5;
+
+    return Math.min(score, 100);
+  };
+
+  const getStrengthLabel = (strength) => {
+    if (strength < 30)
+      return { text: "Muito fraca", color: "var(--error-color)" };
+    if (strength < 50) return { text: "Fraca", color: "#f59e0b" };
+    if (strength < 70) return { text: "Média", color: "#eab308" };
+    if (strength < 90) return { text: "Forte", color: "#22c55e" };
+    return { text: "Muito forte", color: "#16a34a" };
   };
 
   const handleSubmit = async (e) => {
@@ -44,14 +88,21 @@ export default function NovaSenha() {
 
     const { password, confirmPassword } = formData;
 
-    // Validação básica
+    // Validações de segurança
     if (password !== confirmPassword) {
       setError("As senhas não coincidem");
       return;
     }
 
-    if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres");
+    if (password.length < 8) {
+      setError("A senha deve ter pelo menos 8 caracteres");
+      return;
+    }
+
+    if (passwordStrength < 50) {
+      setError(
+        "Sua senha é muito fraca. Adicione letras maiúsculas, números e caracteres especiais."
+      );
       return;
     }
 
@@ -60,6 +111,9 @@ export default function NovaSenha() {
       // Redefinir a senha
       await resetPassword(login, code, password);
       setSuccess("Senha redefinida com sucesso!");
+
+      // Limpar dados sensíveis
+      setFormData({ password: "", confirmPassword: "" });
 
       // Redirecionar para login após 2 segundos
       setTimeout(() => {
@@ -71,6 +125,8 @@ export default function NovaSenha() {
       setLoading(false);
     }
   };
+
+  const strengthInfo = getStrengthLabel(passwordStrength);
 
   return (
     <div className="auth-container">
@@ -85,15 +141,39 @@ export default function NovaSenha() {
           <label htmlFor="password" className="form-label">
             Nova Senha
           </label>
-          <input
-            id="password"
-            type="password"
-            className="form-input"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            minLength={6}
-          />
+          <div className="password-input-container">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              className="form-input"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword(!showPassword)}>
+              {showPassword ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
+          {formData.password && (
+            <div className="password-strength">
+              <div className="strength-bar">
+                <div
+                  className="strength-fill"
+                  style={{
+                    width: `${passwordStrength}%`,
+                    backgroundColor: strengthInfo.color,
+                  }}></div>
+              </div>
+              <span style={{ color: strengthInfo.color }}>
+                {strengthInfo.text}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="form-group">
@@ -102,12 +182,13 @@ export default function NovaSenha() {
           </label>
           <input
             id="confirmPassword"
-            type="password"
+            type={showPassword ? "text" : "password"}
             className="form-input"
             value={formData.confirmPassword}
             onChange={handleChange}
             required
-            minLength={6}
+            minLength={8}
+            autoComplete="new-password"
           />
         </div>
 
@@ -119,6 +200,48 @@ export default function NovaSenha() {
       <Link href="/login" className="auth-link">
         Voltar para o login
       </Link>
+
+      <style jsx>{`
+        .password-input-container {
+          position: relative;
+          display: flex;
+        }
+
+        .password-toggle {
+          position: absolute;
+          right: 0;
+          top: 0;
+          height: 100%;
+          padding: 0 10px;
+          background: transparent;
+          border: none;
+          color: var(--text-secondary);
+          cursor: pointer;
+          font-size: 0.8rem;
+        }
+
+        .password-toggle:hover {
+          color: var(--primary-color);
+        }
+
+        .password-strength {
+          margin-top: 8px;
+          font-size: 0.8rem;
+        }
+
+        .strength-bar {
+          height: 4px;
+          background-color: rgba(255, 255, 255, 0.1);
+          border-radius: 2px;
+          margin-bottom: 4px;
+        }
+
+        .strength-fill {
+          height: 100%;
+          border-radius: 2px;
+          transition: width 0.3s ease, background-color 0.3s ease;
+        }
+      `}</style>
     </div>
   );
 }

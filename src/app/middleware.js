@@ -1,41 +1,53 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 
-// Rotas que não requerem autenticação - definidas uma única vez
-const PUBLIC_ROUTES = ["/login", "/cadastro"];
+// Rotas que não requerem autenticação
+const PUBLIC_ROUTES = [
+  "/login",
+  "/cadastro",
+  "/recuperar-senha",
+  "/recuperar-senha/codigo",
+  "/recuperar-senha/nova-senha",
+];
+
+// Função auxiliar para verificar se a URL atual é uma rota pública
+function isPublicRoute(path) {
+  return PUBLIC_ROUTES.some(
+    (route) => path === route || path.startsWith(`${route}/`)
+  );
+}
 
 export async function middleware(req) {
   const res = NextResponse.next();
 
-  // Criação do cliente Supabase com configuração mínima necessária
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) =>
-          res.cookies.set({ name, value, ...options }),
-        remove: (name, options) =>
-          res.cookies.set({ name, value: "", ...options }),
-      },
+  // Obter o caminho da URL sem query parameters
+  const path = new URL(req.url).pathname;
+
+  // Verificar se é uma rota pública
+  const isPublic = isPublicRoute(path);
+
+  // Verificar se já existe uma sessão
+  let session = null;
+  try {
+    const cookieStore = req.cookies;
+    const userCookie = cookieStore.get("user");
+
+    if (userCookie?.value) {
+      try {
+        session = JSON.parse(decodeURIComponent(userCookie.value));
+      } catch (e) {
+        console.error("Erro ao analisar cookie de usuário:", e);
+      }
     }
-  );
+  } catch (e) {
+    console.error("Erro ao verificar autenticação:", e);
+  }
 
-  // Verificação de sessão otimizada
-  const { data } = await supabase.auth.getSession();
-  const session = data?.session;
-
-  // Determinar se a rota atual é pública
-  const path = req.nextUrl.pathname;
-  const isPublicRoute = PUBLIC_ROUTES.includes(path);
-
-  // Redirecionamentos otimizados
-  if (!session && !isPublicRoute) {
+  // Redirecionar baseado em autenticação e tipo de rota
+  if (!session && !isPublic) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (session && isPublicRoute) {
+  if (session && isPublic) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 

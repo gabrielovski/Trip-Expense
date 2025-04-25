@@ -4,59 +4,84 @@ import bcrypt from "bcryptjs";
 // Cache do usuário atual para evitar chamadas repetidas ao localStorage
 let cachedUser = null;
 
-// Custo de hash reduzido para melhor performance
-const SALT_ROUNDS = 8;
+// Custo de hash bcrypt - 10 é mais seguro que 8, mantendo boa performance
+const SALT_ROUNDS = 10;
+
+// Função de log segura que não expõe dados sensíveis
+const secureLog = (message, sensitive = false) => {
+  if (process.env.NODE_ENV !== "production" || !sensitive) {
+    console.log(message);
+  }
+};
 
 export async function signIn(login, password) {
   try {
-    console.log("Tentando login para:", login);
-    const supabase = getSupabaseClient();
+    secureLog(`Tentando login para: ${login}`);
+    const supabase = getSupabaseClient("seguranca");
+
+    // Otimização: selecionar apenas os campos necessários
     const { data: userData, error: userError } = await supabase
       .from("tbusuarios")
-      .select("*")
+      .select("usuario_id, nome, login, senha, atualizado_em")
       .eq("login", login)
       .single();
 
     if (userError || !userData) {
-      console.log("Usuário não encontrado");
       throw new Error("Usuário não encontrado");
     }
 
-    // Log para debug - não mostra a senha real no console
-    console.log("Senha fornecida: [comprimento]", password.length);
-    console.log("Hash armazenado:", userData.senha);
+    // Garantir que temos uma senha para comparar
+    if (!userData.senha) {
+      secureLog("Erro: Usuário não possui senha definida", true);
+      throw new Error("Erro de autenticação");
+    }
 
-    // Usando compareSync para melhor desempenho
+    // Sem logar informações da senha
     const passwordMatch = bcrypt.compareSync(password, userData.senha);
-    console.log("Senhas correspondem?", passwordMatch);
 
     if (!passwordMatch) {
       throw new Error("Senha incorreta");
     }
 
-    // Atualizar cache
-    cachedUser = userData;
+    // Preparar objeto de usuário para armazenamento (sem senha)
+    const userForStorage = { ...userData };
+    delete userForStorage.senha;
+
+    // Atualizar cache com versão sem senha
+    cachedUser = userForStorage;
+
     try {
-      localStorage.setItem("user", JSON.stringify(userData));
+      // Usar sessionStorage e localStorage para persistência
+      if (typeof window !== "undefined") {
+        const userJson = JSON.stringify(userForStorage);
+        sessionStorage.setItem("user", userJson);
+        localStorage.setItem("user", userJson);
+
+        // Definir também um cookie para o middleware
+        document.cookie = `user=${encodeURIComponent(
+          userJson
+        )}; path=/; max-age=86400; SameSite=Strict`;
+      }
     } catch (e) {
-      console.log("Erro ao salvar no localStorage:", e);
+      secureLog(`Erro ao salvar no storage: ${e.message}`, true);
+      // Não interrompa o login se o armazenamento falhar
     }
 
-    return { user: userData };
+    return { user: userForStorage };
   } catch (error) {
-    console.log("Erro no login:", error.message);
+    secureLog(`Erro no login: ${error.message}`, true);
     throw error;
   }
 }
 
 export async function signUp(login, password, nome) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient("seguranca");
 
     // Verificar se o login já existe - com operação otimizada
     const { count, error: countError } = await supabase
       .from("tbusuarios")
-      .select("*", { count: "exact", head: true })
+      .select("usuario_id", { count: "exact", head: true })
       .eq("login", login);
 
     if (countError)
@@ -67,21 +92,22 @@ export async function signUp(login, password, nome) {
     const usuario_id = Date.now();
     const senhaHash = bcrypt.hashSync(password, SALT_ROUNDS);
 
-    // Log para debug
-    console.log("Criando usuário com hash:", senhaHash);
-
     const { error } = await supabase.from("tbusuarios").insert([
       {
         usuario_id,
         nome,
         login,
         senha: senhaHash,
+        cargo: "usuario", // cargo padrão
+        criado_em: new Date().toISOString(),
         atualizado_em: new Date().toISOString(),
       },
     ]);
 
     if (error) throw new Error(error.message);
 
+    // Tentar login com uma pequena espera para garantir que o banco de dados processou a inserção
+    await new Promise((resolve) => setTimeout(resolve, 500));
     return signIn(login, password);
   } catch (error) {
     throw error;
@@ -90,10 +116,18 @@ export async function signUp(login, password, nome) {
 
 export const signOut = () => {
   try {
-    localStorage.removeItem("user");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("user");
+
+      // Limpar cookies definindo expiração no passado
+      document.cookie =
+        "user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict";
+    }
   } catch (e) {
-    console.log("Erro ao remover do localStorage:", e);
+    secureLog(`Erro ao remover dados de usuário: ${e.message}`, true);
   }
+  // Sempre limpar o cache independentemente de erros
   cachedUser = null;
 };
 
@@ -102,13 +136,20 @@ export const getCurrentUser = () => {
   if (cachedUser) return cachedUser;
 
   try {
-    const userData = localStorage.getItem("user");
+    // Verificar primeiro sessionStorage (mais seguro)
+    let userData = sessionStorage.getItem("user");
+
+    // Cair para localStorage se não encontrar no sessionStorage
+    if (!userData) {
+      userData = localStorage.getItem("user");
+    }
+
     if (!userData) return null;
 
     cachedUser = JSON.parse(userData);
     return cachedUser;
   } catch (e) {
-    console.log("Erro ao obter usuário do localStorage:", e);
+    secureLog("Erro ao obter usuário do storage:", true);
     return null;
   }
 };
@@ -116,7 +157,7 @@ export const getCurrentUser = () => {
 // Novas funções para recuperação de senha
 export async function requestPasswordReset(login) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient("seguranca");
 
     // Verificar se o usuário existe
     const { data: userData, error: userError } = await supabase
@@ -127,8 +168,10 @@ export async function requestPasswordReset(login) {
 
     if (userError || !userData) throw new Error("Usuário não encontrado");
 
-    // Gerar código de recuperação com 6 dígitos
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // Gerar código de recuperação mais seguro - 8 dígitos
+    const resetCode = Math.floor(
+      10000000 + Math.random() * 90000000
+    ).toString();
 
     // Calcular expiração (1 hora)
     const expiration = new Date();
@@ -146,9 +189,9 @@ export async function requestPasswordReset(login) {
 
     if (error) throw new Error("Erro ao gerar código de recuperação");
 
-    // Em um sistema real, você enviaria o código por email
-    // Mas para demonstração, vamos retornar o código para mostrar na interface
-    return { resetCode };
+    // Em um sistema real, enviaríamos o código por email
+    // Retornamos o código apenas para facilitar o desenvolvimento
+    return { success: true, resetCode };
   } catch (error) {
     throw error;
   }
@@ -156,7 +199,7 @@ export async function requestPasswordReset(login) {
 
 export async function verifyResetCode(login, code) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient("seguranca");
 
     // Buscar usuário pelo login
     const { data: userData, error: userError } = await supabase
@@ -192,46 +235,40 @@ export async function verifyResetCode(login, code) {
 
 export async function resetPassword(login, code, newPassword) {
   try {
-    console.log("Iniciando redefinição de senha para:", login);
+    secureLog(`Iniciando redefinição de senha para: ${login}`);
 
     // Primeiro verificar o código
     const { valid, resetId } = await verifyResetCode(login, code);
 
     if (!valid) throw new Error("Código de verificação inválido");
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient("seguranca");
 
     // Buscar usuário pelo login
     const { data: userData, error: userError } = await supabase
       .from("tbusuarios")
-      .select("*")
+      .select("usuario_id")
       .eq("login", login)
       .single();
 
     if (userError || !userData) throw new Error("Usuário não encontrado");
 
-    // Gerar hash da nova senha - como a trigger foi removida, precisamos fazer isso no código
-    // Usando um salt consistente para melhorar confiabilidade
+    // Gerar hash da nova senha com SALT_ROUNDS mais forte
     const salt = bcrypt.genSaltSync(SALT_ROUNDS);
     const senhaHash = bcrypt.hashSync(newPassword, salt);
-
-    console.log("Novo hash bcrypt gerado:", senhaHash);
 
     // Atualizar senha do usuário com o hash gerado
     const { error: updateError } = await supabase
       .from("tbusuarios")
       .update({
-        senha: senhaHash, // Agora enviamos o hash em vez da senha em texto puro
+        senha: senhaHash,
         atualizado_em: new Date().toISOString(),
       })
       .eq("usuario_id", userData.usuario_id);
 
     if (updateError) {
-      console.error("Erro ao atualizar senha:", updateError);
       throw new Error("Erro ao atualizar senha");
     }
-
-    console.log("Senha atualizada com sucesso");
 
     // Marcar código como utilizado
     await supabase
@@ -243,31 +280,13 @@ export async function resetPassword(login, code, newPassword) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("user");
       sessionStorage.removeItem("user");
-      // Também limpar qualquer cookie de sessão que possa existir
       document.cookie = "user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
     cachedUser = null;
 
-    // Verificar se a senha foi realmente alterada
-    const { data: checkUser } = await supabase
-      .from("tbusuarios")
-      .select("senha")
-      .eq("usuario_id", userData.usuario_id)
-      .single();
-
-    if (checkUser) {
-      console.log("Hash armazenado após atualização:", checkUser.senha);
-      const verifyTest = bcrypt.compareSync(newPassword, checkUser.senha);
-      console.log("Teste de validação (deve ser true):", verifyTest);
-
-      if (!verifyTest) {
-        console.error("Erro grave: A senha atualizada não pode ser validada!");
-      }
-    }
-
     return { success: true };
   } catch (error) {
-    console.error("Erro ao resetar senha:", error);
+    secureLog(`Erro ao resetar senha: ${error.message}`, true);
     throw error;
   }
 }
