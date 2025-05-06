@@ -44,8 +44,8 @@ export default function Dashboard() {
         usuario_id
       `);
 
-      // Se não for gerente (tipo_usuario = 2), mostrar apenas as próprias viagens
-      if (userData.tipo_usuario !== 2) {
+      // Se não for admin, mostrar apenas as próprias viagens
+      if (userData.login !== "admin") {
         query = query.eq("usuario_id", userData.usuario_id);
       }
 

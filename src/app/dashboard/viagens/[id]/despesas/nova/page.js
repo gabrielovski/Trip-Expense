@@ -26,13 +26,8 @@ export default function NovaDespesaPage() {
     valor: "",
     data: new Date().toISOString().split("T")[0],
     categoria: "transporte", // Valor padrão
-    comprovante: null,
     observacoes: "",
-    comprovanteName: "",
   });
-
-  // Preview de comprovante
-  const [previewUrl, setPreviewUrl] = useState(null);
 
   useEffect(() => {
     const userData = getCurrentUser();
@@ -40,7 +35,6 @@ export default function NovaDespesaPage() {
       router.push("/login");
       return;
     }
-
     setUser(userData);
     fetchViagem();
   }, [router, id]);
@@ -71,15 +65,14 @@ export default function NovaDespesaPage() {
         return;
       }
 
-      // Verificar se a viagem está em status que permite adição de despesas
-      if (data.status !== "aprovada" && data.status !== "pendente") {
-        setError(
-          `Esta viagem está ${data.status}, não é possível adicionar despesas.`
-        );
+      // Substituir pelo nome do login atual
+      const userData = getCurrentUser();
+      if (!userData) {
+        router.push("/login");
         return;
       }
-
-      setViagem(data);
+      setUser(userData);
+      setViagem({ ...data, usuario_nome: userData.login });
     } catch (err) {
       console.error("Erro ao carregar detalhes da viagem:", err);
       setError("Não foi possível carregar os detalhes da viagem.");
@@ -89,41 +82,9 @@ export default function NovaDespesaPage() {
   };
 
   const handleChange = (e) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
 
-    if (type === "file") {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      // Validar tipo de arquivo (apenas imagens e PDFs)
-      if (!file.type.includes("image/") && file.type !== "application/pdf") {
-        alert("Apenas imagens e PDFs são permitidos como comprovantes.");
-        return;
-      }
-
-      // Validar tamanho do arquivo (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert("O arquivo é muito grande. O tamanho máximo é 5MB.");
-        return;
-      }
-
-      setFormData({
-        ...formData,
-        comprovante: file,
-        comprovanteName: file.name,
-      });
-
-      // Criar preview para imagens
-      if (file.type.includes("image/")) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          setPreviewUrl(reader.result);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setPreviewUrl(null);
-      }
-    } else if (name === "valor") {
+    if (name === "valor") {
       // Remover caracteres não numéricos para garantir que o valor é válido
       const numericValue = value.replace(/[^\d.]/g, "");
       setFormData({
@@ -164,22 +125,6 @@ export default function NovaDespesaPage() {
         .select();
 
       if (error) throw error;
-
-      // Upload de comprovante
-      if (formData.comprovante) {
-        const fileName = `despesa-${data[0].despesa_id}-${Date.now()}`;
-        const { error: uploadError } = await supabase.storage
-          .from("comprovantes")
-          .upload(fileName, formData.comprovante);
-
-        if (uploadError) throw uploadError;
-
-        // Atualizar despesa com referência ao comprovante
-        await supabase
-          .from("tbdespesas")
-          .update({ comprovante_url: fileName })
-          .eq("despesa_id", data[0].despesa_id);
-      }
 
       alert("Despesa adicionada com sucesso!");
       router.push(`/dashboard/viagens/${id}`);
@@ -327,45 +272,13 @@ export default function NovaDespesaPage() {
               name="categoria"
               value={formData.categoria}
               onChange={handleChange}
-              className="form-control"
+              className="form-select"
               required>
               <option value="transporte">Transporte</option>
               <option value="hospedagem">Hospedagem</option>
               <option value="alimentacao">Alimentação</option>
               <option value="outros">Outros</option>
             </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="comprovante">Comprovante</label>
-            <div className="file-input-container">
-              <input
-                type="file"
-                id="comprovante"
-                name="comprovante"
-                onChange={handleChange}
-                className="file-input"
-                accept="image/*,application/pdf"
-              />
-              <button
-                type="button"
-                className="file-button"
-                onClick={() => document.getElementById("comprovante").click()}>
-                Escolher Arquivo
-              </button>
-              <span className="file-name">
-                {formData.comprovanteName || "Nenhum arquivo selecionado"}
-              </span>
-            </div>
-            <small className="form-text">
-              Formatos aceitos: JPG, PNG, GIF, PDF. Tamanho máximo: 5MB.
-            </small>
-
-            {previewUrl && (
-              <div className="image-preview">
-                <img src={previewUrl} alt="Preview do comprovante" />
-              </div>
-            )}
           </div>
 
           <div className="form-group">
@@ -488,43 +401,16 @@ export default function NovaDespesaPage() {
           border-color: #80bdff;
           box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         }
-        .file-input-container {
-          display: flex;
-          align-items: center;
-        }
-        .file-input {
-          position: absolute;
-          left: -9999px;
-        }
-        .file-button {
-          padding: 10px 16px;
-          background-color: #f8f9fa;
-          border: 1px solid #ddd;
-          border-radius: 4px 0 0 4px;
-          cursor: pointer;
-        }
-        .file-name {
-          flex-grow: 1;
+        .form-select {
+          background-color: #ffffff;
+          color: #000000;
+          border: 1px solid #ccc;
           padding: 10px;
-          border: 1px solid #ddd;
-          border-left: none;
-          border-radius: 0 4px 4px 0;
-          background-color: white;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .image-preview {
-          margin-top: 15px;
-          max-width: 300px;
-          border: 1px solid #ddd;
           border-radius: 4px;
-          overflow: hidden;
         }
-        .image-preview img {
-          width: 100%;
-          height: auto;
-          display: block;
+        .form-select option {
+          background-color: #ffffff;
+          color: #000000;
         }
         .form-text {
           color: #6c757d;

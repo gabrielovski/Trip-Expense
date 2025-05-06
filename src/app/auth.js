@@ -88,8 +88,8 @@ export async function signUp(login, password, nome) {
       throw new Error("Erro ao verificar disponibilidade do login");
     if (count > 0) throw new Error("Este login já está em uso");
 
-    // ID simplificado com timestamp para garantir unicidade
-    const usuario_id = Date.now();
+    // Gerar um ID único dentro do intervalo permitido para integer
+    const usuario_id = Math.floor(Math.random() * 2147483647);
     const senhaHash = bcrypt.hashSync(password, SALT_ROUNDS);
 
     const { error } = await supabase.from("tbusuarios").insert([
@@ -98,8 +98,6 @@ export async function signUp(login, password, nome) {
         nome,
         login,
         senha: senhaHash,
-        cargo: "usuario", // cargo padrão
-        criado_em: new Date().toISOString(),
         atualizado_em: new Date().toISOString(),
       },
     ]);
@@ -157,6 +155,11 @@ export const getCurrentUser = () => {
 // Novas funções para recuperação de senha
 export async function requestPasswordReset(login) {
   try {
+    // Verificar se é o usuário admin - proteção especial
+    if (login.toLowerCase() === "admin") {
+      throw new Error("Não é permitido alterar a senha do administrador.");
+    }
+
     const supabase = getSupabaseClient("seguranca");
 
     // Verificar se o usuário existe
@@ -236,6 +239,11 @@ export async function verifyResetCode(login, code) {
 export async function resetPassword(login, code, newPassword) {
   try {
     secureLog(`Iniciando redefinição de senha para: ${login}`);
+
+    // Verificar se é o usuário admin - proteção especial
+    if (login.toLowerCase() === "admin") {
+      throw new Error("Não é permitido alterar a senha do administrador.");
+    }
 
     // Primeiro verificar o código
     const { valid, resetId } = await verifyResetCode(login, code);

@@ -391,6 +391,9 @@ label {
 }
 
 .auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 1.5rem;
   text-align: center;
 }

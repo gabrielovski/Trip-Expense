@@ -140,4 +140,101 @@
   color: var(--info-color);
 }
 
+/* Estilos para a tabela de despesas */
+.table {
+  width: 100%;
+  border-collapse: collapse; /* Alterado de separate para collapse para remover espaços entre células */
+  border-spacing: 0;
+  margin-bottom: 1rem;
+}
+
+.table th,
+.table td {
+  padding: 12px 18px;
+  vertical-align: middle;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Destaque para linhas alternadas */
+.table tbody tr:nth-child(odd) {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Corrigir o hover para não ficar branco */
+.table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* Estilo para categoria */
+.category-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.category-tag.transporte {
+  background-color: rgba(30, 144, 255, 0.2);
+  color: #42a5f5;
+}
+
+.category-tag.hospedagem {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #66bb6a;
+}
+
+.category-tag.alimentacao {
+  background-color: rgba(255, 152, 0, 0.2);
+  color: #ffa726;
+}
+
+.category-tag.outros {
+  background-color: rgba(156, 39, 176, 0.2);
+  color: #ab47bc;
+}
+
+/* Botão pequeno */
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 0.875rem;
+}
+
+/* Responsividade para tabelas */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table th,
+  .table td {
+    padding: 8px;
+  }
+}
+
+/* Estilo para formulários em modais */
+.form-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  appearance: auto;
+}
+
+.form-select option {
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
 /* ...restante dos estilos movidos do componente... */

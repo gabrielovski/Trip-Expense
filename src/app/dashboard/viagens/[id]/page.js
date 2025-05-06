@@ -7,11 +7,20 @@ import { getSupabaseClient } from "../../../supabaseClient";
 import { getCurrentUser } from "../../../auth";
 import "./styles.css"; // Importando o arquivo CSS
 
-function formatarDataLocal(dataStr) {
+// Função para converter timestamp UNIX para data brasileira
+const formatarDataLocal = (dataStr) => {
   if (!dataStr) return "";
+
+  // Se for um timestamp UNIX (número), converter para string de data
+  if (typeof dataStr === "number") {
+    const data = new Date(dataStr * 1000); // Multiplicar por 1000 para converter segundos em milissegundos
+    return data.toLocaleDateString("pt-BR");
+  }
+
+  // Se for uma string de data ISO, formatá-la
   const [ano, mes, dia] = dataStr.split("-");
   return `${dia}/${mes}/${ano}`;
-}
+};
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("pt-BR", {
@@ -34,13 +43,22 @@ export default function ViagemDetalhesPage() {
   // Modal para nova despesa
   const [showModal, setShowModal] = useState(false);
 
+  // Função para obter data local formatada para input date (YYYY-MM-DD)
+  const getDataLocalFormatada = () => {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+    const dia = String(hoje.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+  };
+
   // Form state para nova despesa
   const [novaDespesa, setNovaDespesa] = useState({
     descricao: "",
     valor: "",
-    data: new Date().toISOString().split("T")[0],
+    valorNumerico: 0,
+    data: getDataLocalFormatada(),
     categoria: 1, // Valor padrão - Transporte
-    comprovante: null,
     observacoes: "",
   });
 
@@ -76,7 +94,20 @@ export default function ViagemDetalhesPage() {
 
       if (error) throw error;
 
-      // Buscar dados do usuário responsável
+      // Buscar dados do usuário criador da viagem
+      if (data.usuario_id) {
+        const { data: criadorData, error: criadorError } = await segurancaClient
+          .from("tbusuarios")
+          .select("nome, login")
+          .eq("usuario_id", data.usuario_id)
+          .single();
+
+        if (!criadorError && criadorData) {
+          data.criador = criadorData;
+        }
+      }
+
+      // Buscar dados do usuário responsável pela última atualização
       if (data.atualizado_por) {
         const { data: userData, error: userError } = await segurancaClient
           .from("tbusuarios")
@@ -89,7 +120,14 @@ export default function ViagemDetalhesPage() {
         }
       }
 
+      const userData = getCurrentUser();
+      if (!userData) {
+        router.push("/login");
+        return;
+      }
+
       setViagem(data);
+      setUser(userData);
     } catch (err) {
       console.error(
         "Erro ao carregar detalhes da viagem:",
@@ -119,7 +157,7 @@ export default function ViagemDetalhesPage() {
 
       // Calcular o total das despesas
       const total = data.reduce(
-        (sum, despesa) => sum + parseFloat(despesa.valor || 0),
+        (sum, despesa) => sum + parseFloat(despesa.valor || 0) / 100,
         0
       );
       setTotalDespesas(total);
@@ -187,6 +225,24 @@ export default function ViagemDetalhesPage() {
     }
   };
 
+  const handleValorChange = (e) => {
+    const { value } = e.target;
+    // Remover caracteres não numéricos
+    const numericValue = value.replace(/[^\d]/g, "");
+
+    // Formatar como moeda brasileira (agora sem dividir por 100)
+    const formattedValue = new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(numericValue / 100);
+
+    setNovaDespesa({
+      ...novaDespesa,
+      valor: formattedValue,
+      valorNumerico: numericValue / 100, // Armazenar o valor numérico para enviar ao banco
+    });
+  };
+
   const handleSubmitDespesa = async (e) => {
     e.preventDefault();
 
@@ -203,20 +259,31 @@ export default function ViagemDetalhesPage() {
 
       const financeiroClient = getSupabaseClient("financeiro");
 
+      // Converter data para timestamp UNIX (inteiro)
+      const dataVencimento = Math.floor(
+        new Date(novaDespesa.data).getTime() / 1000
+      );
+      const dataPagamento = Math.floor(new Date().getTime() / 1000); // Data atual como pagamento
+
+      // Gerar um ID único para conta_pagar_id (semelhante ao que fazemos para usuario_id em auth.js)
+      const conta_pagar_id = Math.floor(Math.random() * 2147483647);
+
       // Criar registro de despesa como conta a pagar
       const { data, error } = await financeiroClient
         .from("tbcontaspagar")
         .insert({
-          id_viagem: id,
-          funcionario_id: user.usuario_id,
+          conta_pagar_id: conta_pagar_id, // Adicionando o ID gerado
+          id_viagem: Number(id),
+          funcionario_id: Number(user.usuario_id),
           descricao: novaDespesa.descricao,
-          valor: Number(novaDespesa.valor),
-          data_vencimento: novaDespesa.data,
-          tipo_titulo_id: novaDespesa.categoria,
+          valor: Math.floor(novaDespesa.valorNumerico * 100), // Converter para centavos (inteiro)
+          data_vencimento: dataVencimento, // Timestamp UNIX como inteiro
+          data_pagamento: dataPagamento, // Timestamp UNIX como inteiro
+          tipo_titulo_id: Number(novaDespesa.categoria),
           observacoes: novaDespesa.observacoes,
           status_aprovacao: "pendente",
           atualizado_em: new Date().toISOString(),
-          atualizado_por: user.usuario_id,
+          atualizado_por: Number(user.usuario_id),
         })
         .select();
 
@@ -243,7 +310,8 @@ export default function ViagemDetalhesPage() {
       setNovaDespesa({
         descricao: "",
         valor: "",
-        data: new Date().toISOString().split("T")[0],
+        valorNumerico: 0,
+        data: getDataLocalFormatada(),
         categoria: 1,
         comprovante: null,
         observacoes: "",
@@ -291,6 +359,26 @@ export default function ViagemDetalhesPage() {
     }
   };
 
+  const handleExcluirViagem = async () => {
+    if (!confirm("Tem certeza que deseja excluir esta viagem?")) return;
+
+    try {
+      const viagemClient = getSupabaseClient("viagem");
+      const { error } = await viagemClient
+        .from("tbviagem")
+        .delete()
+        .eq("viagem_id", id);
+
+      if (error) throw error;
+
+      alert("Viagem excluída com sucesso!");
+      router.push("/dashboard/viagens");
+    } catch (err) {
+      console.error("Erro ao excluir viagem:", err);
+      alert("Não foi possível excluir a viagem. Tente novamente.");
+    }
+  };
+
   // Obter destino da viagem
   const getDestino = () => {
     if (!viagem) return "";
@@ -329,6 +417,9 @@ export default function ViagemDetalhesPage() {
           </div>
         </div>
         <div className="actions">
+          <Link href="/dashboard/viagens" className="btn btn-outline">
+            Voltar para Viagens
+          </Link>
           <Link
             href={`/dashboard/viagens/${id}/despesas`}
             className="btn btn-outline">
@@ -360,6 +451,13 @@ export default function ViagemDetalhesPage() {
                 Concluir Viagem
               </button>
             )}
+
+          {/* Mostrar botão excluir apenas para o dono da viagem */}
+          {viagem?.usuario_id === user?.usuario_id && (
+            <button className="btn btn-danger" onClick={handleExcluirViagem}>
+              Excluir Viagem
+            </button>
+          )}
         </div>
       </header>
 
@@ -371,18 +469,8 @@ export default function ViagemDetalhesPage() {
           <div className="info-grid">
             <div className="info-item">
               <div className="info-label">Destino</div>
-              <div className="info-value">{getDestino()}</div>
-            </div>
-            <div className="info-item">
-              <div className="info-label">Status</div>
               <div className="info-value">
-                <span
-                  className={`status-badge ${viagem?.status || "pendente"}`}>
-                  {viagem?.status
-                    ? viagem.status.charAt(0).toUpperCase() +
-                      viagem.status.slice(1)
-                    : "Pendente"}
-                </span>
+                {viagem.destino || "Destino não informado"}
               </div>
             </div>
             <div className="info-item">
@@ -400,7 +488,7 @@ export default function ViagemDetalhesPage() {
             <div className="info-item">
               <div className="info-label">Viajante</div>
               <div className="info-value">
-                {viagem.responsavel?.nome || "Não informado"}
+                {viagem.criador?.nome || "Não informado"}
               </div>
             </div>
             {viagem.observacoes && (
@@ -443,16 +531,12 @@ export default function ViagemDetalhesPage() {
                     <th>Descrição</th>
                     <th>Categoria</th>
                     <th>Valor</th>
-                    <th>Status</th>
-                    <th>
-                      <span className="sr-only">Ações</span>
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {despesas.map((despesa) => (
                     <tr key={despesa.conta_pagar_id}>
-                      <td>{formatarDataLocal(despesa.data)}</td>
+                      <td>{formatarDataLocal(despesa.data_vencimento)}</td>
                       <td>{despesa.descricao}</td>
                       <td>
                         <span className={`category-tag ${despesa.categoria}`}>
@@ -462,20 +546,7 @@ export default function ViagemDetalhesPage() {
                         </span>
                       </td>
                       <td className="text-right">
-                        {formatCurrency(despesa.valor)}
-                      </td>
-                      <td>
-                        <span className={`status-tag ${despesa.status}`}>
-                          {despesa.status.charAt(0).toUpperCase() +
-                            despesa.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        <Link
-                          href={`/dashboard/viagens/${viagem.viagem_id}/despesas/${despesa.conta_pagar_id}`}
-                          className="btn btn-sm btn-secondary">
-                          Detalhes
-                        </Link>
+                        {formatCurrency(despesa.valor / 100)}
                       </td>
                     </tr>
                   ))}
@@ -520,7 +591,7 @@ export default function ViagemDetalhesPage() {
                     id="valor"
                     name="valor"
                     value={novaDespesa.valor}
-                    onChange={handleChangeDespesa}
+                    onChange={handleValorChange}
                     className="form-input"
                     required
                     placeholder="0.00"
@@ -555,18 +626,6 @@ export default function ViagemDetalhesPage() {
                   <option value={3}>Alimentação</option>
                   <option value={4}>Outros</option>
                 </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="comprovante">Comprovante</label>
-                <input
-                  type="file"
-                  id="comprovante"
-                  name="comprovante"
-                  onChange={handleChangeDespesa}
-                  className="form-file-input"
-                  accept="image/*,application/pdf"
-                />
               </div>
 
               <div className="form-group">

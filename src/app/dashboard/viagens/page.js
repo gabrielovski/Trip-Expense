@@ -27,6 +27,11 @@ export default function ViagensPage() {
       setLoading(true);
       const user = getCurrentUser();
 
+      // Debug: verificar se o usuário é reconhecido como admin
+      console.log("Dados do usuário:", user);
+      console.log("Login do usuário:", user.login);
+      console.log("É admin?", user.login === "admin");
+
       const supabase = getSupabaseClient("viagem");
       // Consulta correta para schema viagem
       let query = supabase.from("tbviagem").select(`
@@ -40,9 +45,12 @@ export default function ViagensPage() {
         usuario_id
       `);
 
-      // Se não for gerente (tipo_usuario = 2), mostrar apenas as próprias viagens
-      if (user.tipo_usuario !== 2) {
+      // Se não for admin, mostrar apenas as próprias viagens
+      if (user.login !== "admin") {
+        console.log("Aplicando filtro por usuario_id:", user.usuario_id);
         query = query.eq("usuario_id", user.usuario_id);
+      } else {
+        console.log("Usuário é admin, mostrando todas as viagens");
       }
 
       const { data, error } = await query.order("data_ida", {
