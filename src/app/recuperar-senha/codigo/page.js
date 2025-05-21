@@ -49,20 +49,28 @@ function VerificarCodigoForm() {
       <h2 className="auth-title">Insira o Código de Recuperação</h2>
       {error && <p className="error-message">{error}</p>}
 
+      <p className="form-info">
+        Digite o código de recuperação que foi enviado para seu e-mail.
+      </p>
+
       <form onSubmit={handleSubmit} className="auth-form">
         <div className="form-group">
-          <label htmlFor="login">Login</label>
+          <label htmlFor="login" className="form-label">
+            Login
+          </label>
           <input
             type="text"
             id="login"
             value={login}
             readOnly
             disabled
-            className="form-control"
+            className="form-input"
           />
         </div>
         <div className="form-group">
-          <label htmlFor="code">Código de Recuperação</label>
+          <label htmlFor="code" className="form-label">
+            Código de Recuperação
+          </label>
           <input
             type="text"
             id="code"
@@ -70,12 +78,12 @@ function VerificarCodigoForm() {
             onChange={(e) => setCode(e.target.value)}
             placeholder="Insira o código recebido"
             required
-            className="form-control"
+            className="form-input"
           />
         </div>
         <button
           type="submit"
-          className="auth-button"
+          className="btn btn-primary"
           disabled={loading || !code}>
           {loading ? "Verificando..." : "Verificar Código"}
         </button>

@@ -13,7 +13,6 @@ export default function RecuperarSenha() {
   const [resetCode, setResetCode] = useState("");
   const [showCode, setShowCode] = useState(false);
   const router = useRouter();
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -22,12 +21,29 @@ export default function RecuperarSenha() {
 
     try {
       // Solicita o código de recuperação
+      console.log("Solicitando código de recuperação para:", login);
       const result = await requestPasswordReset(login);
+      console.log("Resultado da recuperação:", result);
       setSuccess("Código de recuperação gerado com sucesso!");
       setResetCode(result.resetCode); // Apenas para demonstração
       setShowCode(true);
     } catch (err) {
-      setError(err.message || "Erro ao solicitar recuperação de senha");
+      console.error("Erro ao recuperar senha:", err);
+
+      // Verificar se o erro tem detalhes específicos do banco
+      let errorMessage = "Erro ao solicitar recuperação de senha";
+
+      if (err.message) {
+        errorMessage = err.message;
+
+        // Verificar se é o erro específico de tamanho da coluna
+        if (errorMessage.includes("value too long for type")) {
+          errorMessage =
+            "Erro de configuração do sistema. Por favor, contate o administrador.";
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

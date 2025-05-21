@@ -41,11 +41,8 @@ export default function Dashboard() {
         destino,
         motivo,
         observacoes,
-        usuario_id
-      `);
-
-      // Se não for admin, mostrar apenas as próprias viagens
-      if (userData.login !== "admin") {
+        usuario_id      `); // Se não for admin ou gabriel, mostrar apenas as próprias viagens
+      if (userData.login !== "admin" && userData.login !== "gabriel") {
         query = query.eq("usuario_id", userData.usuario_id);
       }
 
@@ -111,22 +108,24 @@ export default function Dashboard() {
             Sair
           </button>
         </div>
-      </header>
-
+      </header>{" "}
       <nav className="main-nav">
+        {" "}
         <Link href="/dashboard" className="nav-link active">
           Dashboard
-        </Link>
+        </Link>{" "}
         <Link href="/dashboard/viagens" className="nav-link">
           Viagens
+        </Link>{" "}
+        <Link href="/dashboard/usuarios" className="nav-link">
+          Usuários
         </Link>
-        {user.tipo_usuario === 2 && (
-          <Link href="/dashboard/usuarios" className="nav-link">
-            Usuários
+        {(user.login === "admin" || user.login === "gabriel") && (
+          <Link href="/dashboard/teste-conexao" className="nav-link diagnostic">
+            Diagnóstico
           </Link>
         )}
       </nav>
-
       <div className="dashboard-content">
         <section className="card">
           <div className="card-header">
@@ -198,28 +197,11 @@ export default function Dashboard() {
               <Link href="/dashboard/viagens/nova" className="action-card">
                 <div className="action-icon">➕</div>
                 <span className="action-text">Nova Viagem</span>
-              </Link>
-              {user.tipo_usuario === 2 && (
-                <>
-                  <Link
-                    href="/dashboard/viagens?filtro=pendente"
-                    className="action-card">
-                    <div className="action-icon">✓</div>
-                    <span className="action-text">Aprovar Viagens</span>
-                  </Link>
-                  <Link
-                    href="/dashboard/despesas?status=pendente"
-                    className="action-card">
-                    <div className="action-icon">💰</div>
-                    <span className="action-text">Reembolsos Pendentes</span>
-                  </Link>
-                </>
-              )}
+              </Link>{" "}
             </div>
           </div>
         </section>
       </div>
-
       <style jsx>{`
         .page-header {
           display: flex;
@@ -282,6 +264,14 @@ export default function Dashboard() {
           width: 100%;
           height: 2px;
           background-color: var(--primary-color);
+        }
+        
+        .nav-link.diagnostic {
+          color: #ff9800;
+        }
+        
+        .nav-link.diagnostic:hover {
+          background-color: rgba(255, 152, 0, 0.1);
         }
         
         .dashboard-content {

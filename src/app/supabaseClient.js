@@ -8,18 +8,12 @@ if (!supabaseUrl || !supabaseKey) {
   console.error(
     "Erro: Variáveis de ambiente do Supabase não estão definidas corretamente!"
   );
-  console.error(
-    "NEXT_PUBLIC_SUPABASE_URL:",
-    supabaseUrl ? "Definida" : "Não definida"
-  );
-  console.error(
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY:",
-    supabaseKey ? "Definida" : "Não definida"
-  );
 }
 
 // Cliente único Supabase para toda a aplicação
 let supabaseClient = null;
+// Mapeamento para clientes de schema específicos para evitar recriação
+const schemaClients = {};
 
 /**
  * Obtém cliente Supabase considerando o schema especificado
@@ -29,6 +23,10 @@ let supabaseClient = null;
 export function getSupabaseClient(schema) {
   // Se não temos um cliente ainda, criar um
   if (!supabaseClient) {
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("⚠️ Variáveis de ambiente do Supabase não encontradas!");
+    }
+
     supabaseClient = createClient(supabaseUrl || "", supabaseKey || "", {
       auth: {
         persistSession: true,
@@ -37,11 +35,13 @@ export function getSupabaseClient(schema) {
     });
   }
 
-  // Se um schema específico foi pedido, retorna o cliente configurado para esse schema
+  // Se um schema específico foi pedido e já temos um cliente para ele, usá-lo
   if (schema) {
-    return supabaseClient.schema(schema);
+    if (!schemaClients[schema]) {
+      schemaClients[schema] = supabaseClient.schema(schema);
+    }
+    return schemaClients[schema];
   }
-
   // Caso contrário, retorna o cliente padrão
   return supabaseClient;
 }

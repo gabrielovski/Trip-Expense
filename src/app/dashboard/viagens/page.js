@@ -4,33 +4,35 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseClient } from "../../supabaseClient";
-import { getCurrentUser } from "../../auth";
+import { getCurrentUser, signOut } from "../../auth";
 
 export default function ViagensPage() {
   const [viagens, setViagens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (!user) {
+    const userData = getCurrentUser();
+    if (!userData) {
       router.push("/login");
       return;
     }
 
-    fetchViagens();
+    setUser(userData);
+    fetchViagens(userData);
   }, [router]);
 
-  const fetchViagens = async () => {
+  const fetchViagens = async (userData) => {
     try {
-      setLoading(true);
-      const user = getCurrentUser();
-
-      // Debug: verificar se o usuário é reconhecido como admin
-      console.log("Dados do usuário:", user);
-      console.log("Login do usuário:", user.login);
-      console.log("É admin?", user.login === "admin");
+      setLoading(true); // Debug: verificar se o usuário é reconhecido como admin
+      console.log("Dados do usuário:", userData);
+      console.log("Login do usuário:", userData.login);
+      console.log(
+        "É admin?",
+        userData.login === "admin" || userData.login === "gabriel"
+      );
 
       const supabase = getSupabaseClient("viagem");
       // Consulta correta para schema viagem
@@ -42,13 +44,12 @@ export default function ViagensPage() {
         motivo,
         observacoes,
         atualizado_por,
-        usuario_id
-      `);
+        usuario_id      `);
 
       // Se não for admin, mostrar apenas as próprias viagens
-      if (user.login !== "admin") {
-        console.log("Aplicando filtro por usuario_id:", user.usuario_id);
-        query = query.eq("usuario_id", user.usuario_id);
+      if (userData.login !== "admin" && userData.login !== "gabriel") {
+        console.log("Aplicando filtro por usuario_id:", userData.usuario_id);
+        query = query.eq("usuario_id", userData.usuario_id);
       } else {
         console.log("Usuário é admin, mostrando todas as viagens");
       }
@@ -94,51 +95,95 @@ export default function ViagensPage() {
     }
   };
 
+  const handleLogout = () => {
+    signOut();
+    router.replace("/login");
+  };
+
+  if (!user) {
+    return (
+      <div className="page-container">
+        <h2>Carregando...</h2>
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
       <header className="page-header">
-        <h1>Minhas Viagens</h1>
-        <div className="header-actions">
-          <Link href="/dashboard" className="btn btn-outline">
-            Voltar ao Dashboard
-          </Link>
-          <Link href="/dashboard/viagens/nova" className="btn btn-primary">
-            Nova Viagem
-          </Link>
+        <div>
+          <h1>Minhas Viagens</h1>
+          <p className="welcome-text">Olá, {user.nome}</p>
         </div>
-      </header>
-
-      {loading ? (
-        <div className="loading-state">Carregando viagens...</div>
-      ) : error ? (
-        <div className="error-message">{error}</div>
-      ) : viagens.length === 0 ? (
-        <div className="empty-state">
-          <p>Nenhuma viagem encontrada</p>
-          <Link href="/dashboard/viagens/nova" className="btn btn-primary">
-            Criar Nova Viagem
-          </Link>
+        <div className="user-actions">
+          <button className="btn btn-secondary btn-sm" onClick={handleLogout}>
+            Sair
+          </button>
         </div>
-      ) : (
-        <div className="viagens-grid">
-          {viagens.map((viagem) => (
+      </header>{" "}
+      <nav className="main-nav">
+        {" "}
+        <Link href="/dashboard" className="nav-link">
+          Dashboard
+        </Link>
+        <Link href="/dashboard/viagens" className="nav-link active">
+          Viagens
+        </Link>{" "}
+        <Link href="/dashboard/usuarios" className="nav-link">
+          Usuários
+        </Link>
+        {(user.login === "admin" || user.login === "gabriel") && (
+          <Link href="/dashboard/teste-conexao" className="nav-link diagnostic">
+            Diagnóstico
+          </Link>
+        )}
+      </nav>
+      <div className="dashboard-content">
+        <section className="card">
+          <div className="card-header">
+            <h2>Lista de Viagens</h2>
             <Link
-              href={`/dashboard/viagens/${viagem.viagem_id}`}
-              key={viagem.viagem_id}
-              className="viagem-card">
-              <div className="viagem-header">
-                <h3>{viagem.destino}</h3>
-              </div>
-              <div className="viagem-date">
-                {formatarDataLocal(viagem.data_ida)} -{" "}
-                {formatarDataLocal(viagem.data_volta)}
-              </div>
-              <div className="viagem-motivo">{viagem.motivo}</div>
+              href="/dashboard/viagens/nova"
+              className="btn btn-primary btn-sm">
+              Nova Viagem
             </Link>
-          ))}
-        </div>
-      )}
-
+          </div>
+          <div className="card-content">
+            {loading ? (
+              <div className="loading">Carregando viagens...</div>
+            ) : error ? (
+              <div className="error-message">{error}</div>
+            ) : viagens.length === 0 ? (
+              <div className="empty-state">
+                <p>Nenhuma viagem encontrada</p>
+                <Link
+                  href="/dashboard/viagens/nova"
+                  className="btn btn-primary">
+                  Criar Nova Viagem
+                </Link>
+              </div>
+            ) : (
+              <div className="viagens-grid">
+                {viagens.map((viagem) => (
+                  <Link
+                    href={`/dashboard/viagens/${viagem.viagem_id}`}
+                    key={viagem.viagem_id}
+                    className="viagem-card">
+                    <div className="viagem-header">
+                      <h3>{viagem.destino}</h3>
+                    </div>
+                    <div className="viagem-date">
+                      {formatarDataLocal(viagem.data_ida)} -{" "}
+                      {formatarDataLocal(viagem.data_volta)}
+                    </div>
+                    <div className="viagem-motivo">{viagem.motivo}</div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
       <style jsx>{`
         .page-header {
           display: flex;
@@ -147,15 +192,92 @@ export default function ViagensPage() {
           margin-bottom: 1.5rem;
         }
 
-        .header-actions {
+        .welcome-text {
+          color: var(--text-secondary);
+          margin: 0;
+        }
+
+        .user-actions {
           display: flex;
-          gap: 0.75rem;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .main-nav {
+          display: flex;
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+          border-bottom: 1px solid var(--border-color);
+          padding-bottom: 0.5rem;
+        }
+
+        .nav-link {
+          padding: 0.5rem 1rem;
+          color: var(--text-secondary);
+          text-decoration: none;
+          border-radius: var(--radius-sm);
+          transition: var(--transition);
+        }
+
+        .nav-link:hover {
+          color: var(--text-color);
+          background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-link.active {
+          color: var(--primary-color);
+          font-weight: 500;
+          position: relative;
+        }
+
+        .nav-link.active::after {
+          content: "";
+          position: absolute;
+          bottom: -0.5rem;
+          left: 0;
+          width: 100%;
+          height: 2px;
+          background-color: var(--primary-color);
+        }
+
+        .nav-link.diagnostic {
+          color: #ff9800;
+        }
+
+        .nav-link.diagnostic:hover {
+          background-color: rgba(255, 152, 0, 0.1);
+        }
+
+        .card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
         }
 
         .viagens-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           gap: 1.25rem;
+        }
+
+        .viagem-card {
+          background-color: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-sm);
+          padding: 1.25rem;
+          text-decoration: none;
+          color: var(--text-color);
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .viagem-card:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+        }
+
+        .viagem-header h3 {
+          margin: 0 0 0.5rem 0;
+          font-size: 1.25rem;
         }
 
         .viagem-date {
@@ -166,33 +288,26 @@ export default function ViagensPage() {
         }
 
         .viagem-motivo {
-          margin-bottom: 1.25rem;
+          margin-bottom: 0;
           font-size: 0.95rem;
           line-height: 1.6;
           color: var(--text-color);
-          flex-grow: 1;
         }
 
-        .loading-state {
+        .loading {
           text-align: center;
-          padding: 3rem 0;
+          padding: 2rem 0;
           color: var(--text-secondary);
-          font-size: 1.1rem;
         }
 
         .empty-state {
           text-align: center;
-          padding: 4rem 1rem;
-          background-color: var(--foreground-color);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          margin-top: 1.5rem;
+          padding: 3rem 1rem;
         }
 
         .empty-state p {
           color: var(--text-secondary);
           margin-bottom: 1.5rem;
-          font-size: 1.1rem;
         }
 
         .error-message {
@@ -209,12 +324,6 @@ export default function ViagensPage() {
             flex-direction: column;
             align-items: flex-start;
             gap: 1rem;
-          }
-
-          .header-actions {
-            display: flex;
-            width: 100%;
-            gap: 0.75rem;
           }
 
           .viagens-grid {
