@@ -358,24 +358,82 @@ export default function ViagemDetalhesPage() {
       );
     }
   };
-
   const handleExcluirViagem = async () => {
-    if (!confirm("Tem certeza que deseja excluir esta viagem?")) return;
+    // Verificar se o usuário tem permissão para excluir
+    const isOwner = viagem?.usuario_id === user?.usuario_id;
+    const isAdmin = user?.tipo_usuario === 2 || user?.tipo_usuario === "2";
+
+    if (!isOwner && !isAdmin) {
+      alert("Você não tem permissão para excluir esta viagem.");
+      return;
+    }
+
+    if (
+      !confirm(
+        "Tem certeza que deseja excluir esta viagem? Todas as despesas relacionadas também serão excluídas."
+      )
+    )
+      return;
 
     try {
+      setLoading(true);
+
+      // Primeiro excluir as despesas relacionadas à viagem
+      const financeiroClient = getSupabaseClient("financeiro");
+      const { error: despesasError } = await financeiroClient
+        .from("tbcontaspagar")
+        .delete()
+        .eq("id_viagem", id);
+
+      if (despesasError) {
+        console.error("Erro ao excluir despesas relacionadas:", despesasError);
+        throw despesasError;
+      }
+
+      // Depois excluir a viagem
       const viagemClient = getSupabaseClient("viagem");
-      const { error } = await viagemClient
+      const { error: viagemError } = await viagemClient
         .from("tbviagem")
         .delete()
         .eq("viagem_id", id);
 
-      if (error) throw error;
+      if (viagemError) throw viagemError;
 
       alert("Viagem excluída com sucesso!");
       router.push("/dashboard/viagens");
     } catch (err) {
       console.error("Erro ao excluir viagem:", err);
       alert("Não foi possível excluir a viagem. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleEditarViagem = () => {
+    // Verificar se o usuário tem permissão para editar
+    const isOwner = viagem?.usuario_id === user?.usuario_id;
+    const isAdmin = user?.tipo_usuario === 2 || user?.tipo_usuario === "2";
+
+    console.log(
+      "Tipo do usuário:",
+      typeof user?.tipo_usuario,
+      user?.tipo_usuario
+    );
+    console.log("É dono:", isOwner);
+    console.log("É admin:", isAdmin);
+
+    if (!isOwner && !isAdmin) {
+      alert("Você não tem permissão para editar esta viagem.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log(`Redirecionando para edição da viagem ${id}...`);
+      router.push(`/dashboard/viagens/editar/${id}`);
+    } catch (err) {
+      console.error("Erro ao redirecionar para edição:", err);
+      alert("Não foi possível abrir a tela de edição. Tente novamente.");
+      setLoading(false);
     }
   };
 
@@ -415,7 +473,7 @@ export default function ViagemDetalhesPage() {
             <Link href="/dashboard/viagens">Viagens</Link> &gt;{" "}
             <span>{getDestino()}</span>
           </div>
-        </div>
+        </div>{" "}
         <div className="actions">
           <Link href="/dashboard/viagens" className="btn btn-outline">
             Voltar para Viagens
@@ -424,24 +482,23 @@ export default function ViagemDetalhesPage() {
             href={`/dashboard/viagens/${id}/despesas`}
             className="btn btn-outline">
             Ver Todas as Despesas
-          </Link>
-
+          </Link>{" "}
           {/* Mostrar os botões de aprovação/rejeição apenas para gerentes e viagens pendentes */}
-          {user?.tipo_usuario === 2 && viagem?.status === "pendente" && (
-            <>
-              <button
-                className="btn btn-outline-danger"
-                onClick={() => handleAprovarRejeitar("rejeitada")}>
-                Rejeitar
-              </button>
-              <button
-                className="btn btn-success"
-                onClick={() => handleAprovarRejeitar("aprovada")}>
-                Aprovar
-              </button>
-            </>
-          )}
-
+          {(user?.tipo_usuario === 2 || user?.tipo_usuario === "2") &&
+            viagem?.status === "pendente" && (
+              <>
+                <button
+                  className="btn btn-outline-danger"
+                  onClick={() => handleAprovarRejeitar("rejeitada")}>
+                  Rejeitar
+                </button>
+                <button
+                  className="btn btn-success"
+                  onClick={() => handleAprovarRejeitar("aprovada")}>
+                  Aprovar
+                </button>
+              </>
+            )}{" "}
           {/* Mostrar botão concluir apenas para o dono da viagem e se estiver aprovada */}
           {viagem?.usuario_id === user?.usuario_id &&
             viagem?.status === "aprovada" && (
@@ -450,13 +507,27 @@ export default function ViagemDetalhesPage() {
                 onClick={handleConcluirViagem}>
                 Concluir Viagem
               </button>
-            )}
-
-          {/* Mostrar botão excluir apenas para o dono da viagem */}
-          {viagem?.usuario_id === user?.usuario_id && (
-            <button className="btn btn-danger" onClick={handleExcluirViagem}>
-              Excluir Viagem
-            </button>
+            )}{" "}
+          {/* Botões de Editar e Excluir (mostrados apenas para o dono da viagem ou administradores/tipo_usuario=2) */}
+          {(viagem?.usuario_id === user?.usuario_id ||
+            user?.tipo_usuario === 2 ||
+            user?.tipo_usuario === "2") && (
+            <>
+              <button
+                className="btn btn-secondary btn-action"
+                onClick={handleEditarViagem}
+                title="Editar Viagem"
+                aria-label="Editar Viagem">
+                <span className="btn-text">Editar Viagem</span>
+              </button>
+              <button
+                className="btn btn-danger btn-action"
+                onClick={handleExcluirViagem}
+                title="Excluir Viagem"
+                aria-label="Excluir Viagem">
+                <span className="btn-text">Excluir Viagem</span>
+              </button>
+            </>
           )}
         </div>
       </header>

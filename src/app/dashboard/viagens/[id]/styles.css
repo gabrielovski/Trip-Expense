@@ -213,11 +213,63 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Estilos para botões de ação (Editar/Excluir) */
+.btn-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Por padrão, em desktop mostrar texto */
+.btn-text {
+  display: inline;
+}
+
 @media (max-width: 768px) {
   .table th,
   .table td {
     padding: 8px;
   }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .btn {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    /* Ocupar espaço completo em mobile */
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: auto;
+    max-width: none;
+  }
+
+  /* Garantir que os botões de ação tenham o mesmo tamanho */
+  .btn-action {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: auto;
+  }
+}
+
+/* Estilos adicionais para botões de ação */
+.btn-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.btn-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Estilo para formulários em modais */
