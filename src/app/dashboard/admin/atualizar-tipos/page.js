@@ -104,13 +104,14 @@ export default function AtualizarUsuarios() {
     <div className="container">
       <h1>Atualização de Tipos de Usuário</h1>
       <p>
-        Esta ferramenta irá atualizar os usuários que não possuem tipo definido:
+        Esta ferramenta irá atualizar os usuários que não possuem tipo definido:{" "}
       </p>
       <ul>
-        <li>O usuário "admin" receberá tipo_usuario = 2 (Administrador)</li>
+        <li>
+          O usuário &quot;admin&quot; receberá tipo_usuario = 2 (Administrador)
+        </li>
         <li>Todos os outros usuários receberão tipo_usuario = 1 (Padrão)</li>
       </ul>
-
       <div className="actions">
         <button
           onClick={handleAtualizacao}
@@ -122,15 +123,13 @@ export default function AtualizarUsuarios() {
         <button onClick={() => router.push("/dashboard")} className="btn-back">
           Voltar para Dashboard
         </button>
-      </div>
-
+      </div>{" "}
       {resultado && (
         <div className="result">
           <h2>Resultado:</h2>
           <p>{resultado}</p>
         </div>
       )}
-
       <style jsx>{`
         .container {
           max-width: 800px;

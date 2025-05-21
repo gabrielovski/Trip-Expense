@@ -234,14 +234,15 @@ export default function TesteConexao() {
                 as variáveis <code>NEXT_PUBLIC_SUPABASE_URL</code> e{" "}
                 <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>.
               </li>
-              <li>Confirme se as credenciais do Supabase estão corretas.</li>
+              <li>Confirme se as credenciais do Supabase estão corretas.</li>{" "}
               <li>
                 Verifique se os nomes dos schemas no banco de dados correspondem
-                a "seguranca" e "viagem".
+                a &quot;seguranca&quot; e &quot;viagem&quot;.
               </li>
               <li>
-                Assegure-se de que as tabelas "tbusuarios" (schema "seguranca")
-                e "tbviagem" (schema "viagem") existem.
+                Assegure-se de que as tabelas &quot;tbusuarios&quot; (schema
+                &quot;seguranca&quot;) e &quot;tbviagem&quot; (schema
+                &quot;viagem&quot;) existem.
               </li>
               <li>
                 Reinicie o servidor Next.js para aplicar as alterações nas
