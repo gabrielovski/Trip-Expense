@@ -61,7 +61,6 @@ export default function ViagemDetalhesPage() {
     categoria: 1, // Valor padrão - Transporte
     observacoes: "",
   });
-
   useEffect(() => {
     const userData = getCurrentUser();
     if (!userData) {
@@ -70,17 +69,33 @@ export default function ViagemDetalhesPage() {
     }
 
     setUser(userData);
-    fetchViagem();
-    fetchDespesas();
-  }, [router, id]);
 
+    // Certifique-se de que loading seja true antes de buscar os dados
+    setLoading(true);
+
+    // Primeiro busca os dados da viagem
+    const loadData = async () => {
+      try {
+        await fetchViagem();
+        // Só busca as despesas depois que a viagem for carregada com sucesso
+        await fetchDespesas();
+      } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+        // Garantir que loading seja false mesmo em caso de erro
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [router, id]);
   const fetchViagem = async () => {
     try {
       // Usar getSupabaseClient com o esquema específico
       const viagemClient = getSupabaseClient("viagem");
       const segurancaClient = getSupabaseClient("seguranca");
 
-      // Busca a viagem com informações do tipo
+      // Resetar erro antes de buscar novos dados
+      setError(null);
       const { data, error } = await viagemClient
         .from("tbviagem")
         .select(
@@ -92,7 +107,28 @@ export default function ViagemDetalhesPage() {
         .eq("viagem_id", id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Log mais detalhado para entender o erro específico
+        console.error("Erro na busca da viagem:", error.message);
+        console.error("Código do erro:", error.code);
+
+        // Se o erro for "não encontrado", tratar especificamente
+        if (
+          error.code === "PGRST116" ||
+          error.message.includes("não encontrada")
+        ) {
+          setError("Viagem não encontrada. Verifique o ID informado.");
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      // Verificar se há dados
+      if (!data) {
+        setError("Viagem não encontrada. Os dados retornaram vazios.");
+        return;
+      }
 
       // Buscar dados do usuário criador da viagem
       if (data.usuario_id) {
@@ -119,25 +155,63 @@ export default function ViagemDetalhesPage() {
           data.responsavel = userData;
         }
       }
-
       const userData = getCurrentUser();
       if (!userData) {
         router.push("/login");
         return;
       }
 
-      setViagem(data);
-      setUser(userData);
+      // Só definir a viagem se tivermos dados válidos
+      if (data && Object.keys(data).length > 0) {
+        setViagem(data);
+      } else {
+        setError("Dados da viagem estão incompletos ou inválidos.");
+        console.warn("Dados da viagem são vazios ou inválidos:", data);
+      }
     } catch (err) {
       console.error(
         "Erro ao carregar detalhes da viagem:",
         err?.message || "Erro sem mensagem"
       );
-      setError("Não foi possível carregar os detalhes da viagem.");
+
+      // Detecção mais avançada de erros
+      if (
+        err?.code === "PGRST116" ||
+        (err?.message && err.message.includes("not found"))
+      ) {
+        setError(`Viagem com ID ${id} não encontrada na base de dados.`);
+      } else if (err?.code === "PGRST301") {
+        setError("Você não tem permissão para acessar esta viagem.");
+      } else if (err?.message && err.message.includes("network")) {
+        setError(
+          "Erro de conexão com o banco de dados. Verifique sua conexão com a internet."
+        );
+      } else {
+        setError("Não foi possível carregar os detalhes da viagem.");
+      }
+
+      // Registrar todos os detalhes para debugging
+      if (err) {
+        const errorDetails = {
+          message: err.message,
+          code: err.code,
+          status: err.status,
+          details: err.details,
+          hint: err.hint,
+        };
+        console.log("Detalhes do erro:", errorDetails);
+      }
+    } finally {
+      // Sempre marca o carregamento como concluído, mesmo em caso de erro
+      setLoading(false);
     }
   };
-
   const fetchDespesas = async () => {
+    // Se não temos ID válido ou já temos erro na viagem, não buscar despesas
+    if (!id || error) {
+      return;
+    }
+
     try {
       // Usar getSupabaseClient com o esquema 'financeiro'
       const financeiroClient = getSupabaseClient("financeiro");
@@ -443,25 +517,46 @@ export default function ViagemDetalhesPage() {
     return typeof viagem.tipo === "string"
       ? viagem.tipo
       : viagem.tipo?.descricao || "Sem destino";
-  };
-
+  }; // Mostrar mensagem de carregamento enquanto estiver carregando
   if (loading) {
     return (
       <div className="container">
-        <p>Carregando detalhes da viagem...</p>
+        <p className="loading-message">Carregando detalhes da viagem...</p>
       </div>
     );
   }
 
-  if (error || !viagem) {
+  // Mostrar mensagem de erro apenas se o carregamento terminou E temos erro OU não temos dados da viagem
+  if (!loading && error) {
     return (
       <div className="container">
-        <p className="error-message">{error || "Viagem não encontrada"}</p>
-        <Link href="/dashboard/viagens" className="btn btn-primary">
-          Voltar para Viagens
-        </Link>
+        <div className="card error-card">
+          <div className="card-header">
+            <h2>Viagem não encontrada</h2>
+          </div>
+          <div className="card-body">
+            <p className="error-message">{error}</p>
+            <p>
+              Isso pode acontecer pelos seguintes motivos:
+              <ul>
+                <li>O ID da viagem está incorreto</li>
+                <li>A viagem foi excluída</li>
+                <li>Você não tem permissão para acessar esta viagem</li>
+                <li>Houve um problema na conexão com o banco de dados</li>
+              </ul>
+            </p>
+            <Link href="/dashboard/viagens" className="btn btn-primary">
+              Voltar para Viagens
+            </Link>
+          </div>
+        </div>
       </div>
     );
+  }
+
+  // Se não tem viagem após o carregamento, não renderizar mais nada
+  if (!viagem) {
+    return null;
   }
 
   return (
