@@ -10,6 +10,7 @@ export default function TesteConexao() {
   const [user, setUser] = useState(null);
   const [statusSeguranca, setStatusSeguranca] = useState("Verificando...");
   const [statusViagem, setStatusViagem] = useState("Verificando...");
+  const [statusFinanceiro, setStatusFinanceiro] = useState("Verificando...");
   const [errorDetails, setErrorDetails] = useState("");
   const [envVars, setEnvVars] = useState({});
   const router = useRouter();
@@ -42,11 +43,11 @@ export default function TesteConexao() {
     };
     setEnvVars(vars);
   };
-
   const testConnection = async () => {
     setErrorDetails("");
     setStatusSeguranca("Verificando...");
     setStatusViagem("Verificando...");
+    setStatusFinanceiro("Verificando...");
 
     // Verificar se as variáveis de ambiente estão definidas
     if (
@@ -57,6 +58,7 @@ export default function TesteConexao() {
         "❌ Erro: Variáveis de ambiente do Supabase não configuradas.";
       setStatusSeguranca(message);
       setStatusViagem(message);
+      setStatusFinanceiro(message);
       setErrorDetails(
         "As variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY precisam estar definidas no arquivo .env.local na raiz do projeto."
       );
@@ -140,6 +142,47 @@ export default function TesteConexao() {
         (prev) =>
           `${prev}Exception (viagem):\n${JSON.stringify(err, null, 2)}\n\n`
       );
+    } // Testar schema financeiro
+    try {
+      setStatusFinanceiro("Conectando...");
+      const supabaseFinanceiro = getSupabaseClient("financeiro");
+
+      // Verificar se a tabela existe usando um campo específico em vez de count(*)
+      console.log("Testando conexão com schema 'financeiro'...");
+      const { data: dataFinanceiro, error: errorFinanceiro } =
+        await supabaseFinanceiro
+          .from("tbcontaspagar")
+          .select("conta_pagar_id")
+          .limit(1);
+
+      if (errorFinanceiro) {
+        console.error(
+          "Erro na conexão com schema 'financeiro':",
+          errorFinanceiro
+        );
+        setStatusFinanceiro(`❌ Erro: ${errorFinanceiro.message}`);
+        setErrorDetails(
+          (prev) =>
+            `${prev}Schema 'financeiro':\n${JSON.stringify(
+              errorFinanceiro,
+              null,
+              2
+            )}\n\n`
+        );
+      } else {
+        console.log(
+          "Conexão com schema 'financeiro' bem-sucedida:",
+          dataFinanceiro
+        );
+        setStatusFinanceiro("✅ Conectado com sucesso!");
+      }
+    } catch (err) {
+      console.error("Exceção ao conectar com schema 'financeiro':", err);
+      setStatusFinanceiro(`❌ Exceção: ${err.message}`);
+      setErrorDetails(
+        (prev) =>
+          `${prev}Exception (financeiro):\n${JSON.stringify(err, null, 2)}\n\n`
+      );
     }
   };
   return (
@@ -184,6 +227,7 @@ export default function TesteConexao() {
             </button>
           </div>
           <div className="card-content">
+            {" "}
             <div className="status-grid">
               <div className="status-item">
                 <strong>Schema Seguranca:</strong>
@@ -204,13 +248,17 @@ export default function TesteConexao() {
                   {statusViagem}
                 </span>
               </div>
-            </div>
 
-            <h3>Variáveis de Ambiente</h3>
-            <div className="code-block">
-              <pre>{JSON.stringify(envVars, null, 2)}</pre>
+              <div className="status-item">
+                <strong>Schema Financeiro:</strong>
+                <span
+                  className={
+                    statusFinanceiro.includes("sucesso") ? "success" : "error"
+                  }>
+                  {statusFinanceiro}
+                </span>
+              </div>
             </div>
-
             {errorDetails && (
               <>
                 <h3>Detalhes dos Erros</h3>
@@ -219,63 +267,6 @@ export default function TesteConexao() {
                 </div>
               </>
             )}
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="card-header">
-            <h2>Instruções</h2>
-          </div>
-          <div className="card-content">
-            <p>Para resolver problemas de conexão com o banco de dados:</p>
-            <ol>
-              <li>
-                Verifique se o arquivo <code>.env.local</code> existe e contém
-                as variáveis <code>NEXT_PUBLIC_SUPABASE_URL</code> e{" "}
-                <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>.
-              </li>
-              <li>Confirme se as credenciais do Supabase estão corretas.</li>{" "}
-              <li>
-                Verifique se os nomes dos schemas no banco de dados correspondem
-                a &quot;seguranca&quot; e &quot;viagem&quot;.
-              </li>
-              <li>
-                Assegure-se de que as tabelas &quot;tbusuarios&quot; (schema
-                &quot;seguranca&quot;) e &quot;tbviagem&quot; (schema
-                &quot;viagem&quot;) existem.
-              </li>
-              <li>
-                Reinicie o servidor Next.js para aplicar as alterações nas
-                variáveis de ambiente.
-              </li>
-            </ol>
-
-            <div className="info-box">
-              <p>
-                <strong>Exemplo de arquivo .env.local:</strong>
-              </p>
-              <div className="code-block">
-                <pre>{`NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima-do-supabase`}</pre>
-              </div>
-            </div>
-
-            <div className="info-box warning">
-              <p>
-                <strong>Nota sobre Supabase e Contagem:</strong>
-              </p>
-              <p>
-                O Supabase não permite usar <code>count(*)</code> diretamente na
-                função <code>select()</code>. Para contar registros, você deve
-                usar a API de contagem adequada ou selecionar campos
-                específicos.
-              </p>
-              <p>
-                Exemplo correto para contar registros:
-                <br />
-                <code>{`const { count } = await supabase.from("tabela").select("*", { count: "exact" });`}</code>
-              </p>
-            </div>
           </div>
         </section>
       </div>{" "}
